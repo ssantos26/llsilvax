@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#1f4e78" />
+  <meta name="description" content="Controle financeiro do Condomínio LLSILVA X" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+  <title>Condomínio LLSILVA X — Controle Financeiro</title>
+  <style>
+    :root{
+      --bg:#f4f6f8; --card:#ffffff; --text:#1f2937; --muted:#6b7280;
+      --primary:#1f4e78; --primary2:#2f75b5; --green:#14804a; --red:#c0392b;
+      --border:#dbe2ea; --shadow:0 10px 24px rgba(31,78,120,.08);
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
+    header{background:linear-gradient(135deg,var(--primary),var(--primary2));color:#fff;padding:22px 24px}
+    header h1{margin:0;font-size:24px}
+    header p{margin:6px 0 0;opacity:.9}
+    .container{max-width:1280px;margin:0 auto;padding:22px}
+    .tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px}
+    .tab{border:1px solid var(--border);background:#fff;padding:10px 15px;border-radius:9px;cursor:pointer;font-weight:700}
+    .tab.active{background:var(--primary);color:#fff;border-color:var(--primary)}
+    .page{display:none}.page.active{display:block}
+    .grid{display:grid;gap:16px}
+    .grid-4{grid-template-columns:repeat(4,minmax(0,1fr))}
+    .grid-2{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:18px;box-shadow:var(--shadow)}
+    .kpi small{color:var(--muted);display:block;margin-bottom:8px}
+    .kpi strong{font-size:25px}
+    .positive{color:var(--green)} .negative{color:var(--red)}
+    h2,h3{margin-top:0}
+    form{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+    label{font-size:13px;font-weight:700;color:#374151}
+    input,select,textarea{width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;margin-top:5px;background:#fff}
+    textarea{min-height:42px;resize:vertical}
+    .full{grid-column:1/-1}
+    .actions{display:flex;gap:8px;align-items:end;flex-wrap:wrap}
+    button{border:0;border-radius:8px;padding:10px 14px;cursor:pointer;font-weight:700}
+    .btn-primary{background:var(--primary);color:#fff}
+    .btn-secondary{background:#e8eef5;color:var(--primary)}
+    .btn-danger{background:#fde8e7;color:var(--red)}
+    .btn-green{background:#e6f4ec;color:var(--green)}
+    .toolbar{display:flex;gap:10px;justify-content:space-between;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+    .filters{display:flex;gap:8px;flex-wrap:wrap}
+    .filters input,.filters select{margin:0;width:auto}
+    .table-wrap{overflow:auto}
+    table{width:100%;border-collapse:collapse;min-width:780px}
+    th,td{padding:11px;border-bottom:1px solid var(--border);text-align:left;font-size:14px}
+    th{background:#f8fafc;position:sticky;top:0}
+    .badge{padding:4px 8px;border-radius:999px;font-size:12px;font-weight:700}
+    .receita{background:#e6f4ec;color:var(--green)} .despesa{background:#fde8e7;color:var(--red)}
+    canvas{width:100%;height:300px;background:#fff;border-radius:8px}
+    .empty{text-align:center;color:var(--muted);padding:30px}
+    .footer-note{font-size:12px;color:var(--muted);margin-top:12px}
+    @media(max-width:900px){.grid-4,.grid-2,form{grid-template-columns:1fr 1fr}}
+    @media(max-width:600px){.grid-4,.grid-2,form{grid-template-columns:1fr}.container{padding:12px}}
+    @media print{
+      header,.tabs,.no-print,.actions button{display:none!important}
+      body{background:#fff}.card{box-shadow:none}
+      .page{display:none!important}.page.active{display:block!important}
+    }
+  </style>
+</head>
+<body>
+<header>
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:15px;flex-wrap:wrap">
+    <div>
+      <h1>Condomínio LLSILVA X</h1>
+      <p>Controle de receitas, despesas, saldo e relatórios mensais</p>
+    </div>
+    <button id="installApp" class="btn-secondary no-print" style="display:none">Instalar aplicativo</button>
+  </div>
+</header>
+
+<div class="container">
+  <div class="tabs no-print">
+    <button class="tab active" data-page="dashboard">Visão geral</button>
+    <button class="tab" data-page="lancamentos">Lançamentos</button>
+    <button class="tab" data-page="relatorios">Relatórios</button>
+    <button class="tab" data-page="configuracoes">Configurações</button>
+  </div>
+
+  <section id="dashboard" class="page active">
+    <div class="toolbar">
+      <h2>Resumo mensal</h2>
+      <input type="month" id="dashboardMonth">
+    </div>
+    <div class="grid grid-4">
+      <div class="card kpi"><small>Receitas</small><strong id="kpiReceitas" class="positive">R$ 0,00</strong></div>
+      <div class="card kpi"><small>Despesas</small><strong id="kpiDespesas" class="negative">R$ 0,00</strong></div>
+      <div class="card kpi"><small>Saldo do mês</small><strong id="kpiSaldo">R$ 0,00</strong></div>
+      <div class="card kpi"><small>Lançamentos</small><strong id="kpiQtd">0</strong></div>
+    </div>
+    <div class="grid grid-2" style="margin-top:16px">
+      <div class="card"><h3>Receitas x despesas — últimos 6 meses</h3><canvas id="trendChart" width="600" height="300"></canvas></div>
+      <div class="card"><h3>Despesas por categoria</h3><canvas id="categoryChart" width="600" height="300"></canvas></div>
+    </div>
+    <div class="card" style="margin-top:16px">
+      <h3>Últimos lançamentos</h3>
+      <div class="table-wrap"><table><thead><tr><th>Data</th><th>Descrição</th><th>Tipo</th><th>Categoria</th><th>Valor</th></tr></thead><tbody id="recentBody"></tbody></table></div>
+    </div>
+  </section>
+
+  <section id="lancamentos" class="page">
+    <div class="card">
+      <h2>Novo lançamento</h2>
+      <form id="transactionForm">
+        <div><label>Data<input type="date" id="date" required></label></div>
+        <div><label>Tipo<select id="type" required><option value="receita">Receita</option><option value="despesa">Despesa</option></select></label></div>
+        <div><label>Categoria<select id="category" required></select></label></div>
+        <div><label>Valor (R$)<input type="number" id="amount" step="0.01" min="0.01" required></label></div>
+        <div class="full"><label>Descrição<input type="text" id="description" maxlength="120" required placeholder="Ex.: Taxa condominial - Apto 101"></label></div>
+        <div><label>Forma de pagamento<select id="payment"><option>Pix</option><option>Boleto</option><option>Transferência</option><option>Dinheiro</option><option>Cartão</option><option>Débito automático</option></select></label></div>
+        <div><label>Documento/NF<input type="text" id="document" placeholder="Opcional"></label></div>
+        <div><label>Status<select id="status"><option>Pago/Recebido</option><option>Pendente</option></select></label></div>
+        <div class="actions"><button type="submit" class="btn-primary">Salvar lançamento</button><button type="button" id="clearForm" class="btn-secondary">Limpar</button></div>
+      </form>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <div class="toolbar">
+        <h2>Movimentações</h2>
+        <div class="filters">
+          <input type="month" id="filterMonth">
+          <select id="filterType"><option value="">Todos os tipos</option><option value="receita">Receitas</option><option value="despesa">Despesas</option></select>
+          <input type="search" id="filterSearch" placeholder="Buscar descrição">
+          <button id="exportCsv" class="btn-green">Exportar CSV</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Data</th><th>Descrição</th><th>Tipo</th><th>Categoria</th><th>Status</th><th>Valor</th><th>Ações</th></tr></thead>
+          <tbody id="transactionsBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section id="relatorios" class="page">
+    <div class="toolbar">
+      <h2>Relatório mensal</h2>
+      <div class="filters">
+        <input type="month" id="reportMonth">
+        <button onclick="window.print()" class="btn-secondary no-print">Imprimir / Salvar PDF</button>
+      </div>
+    </div>
+    <div class="grid grid-4">
+      <div class="card kpi"><small>Total de receitas</small><strong id="rReceitas" class="positive">R$ 0,00</strong></div>
+      <div class="card kpi"><small>Total de despesas</small><strong id="rDespesas" class="negative">R$ 0,00</strong></div>
+      <div class="card kpi"><small>Resultado</small><strong id="rSaldo">R$ 0,00</strong></div>
+      <div class="card kpi"><small>Despesas pendentes</small><strong id="rPendentes" class="negative">R$ 0,00</strong></div>
+    </div>
+    <div class="grid grid-2" style="margin-top:16px">
+      <div class="card"><h3>Resumo por categoria</h3><div id="categoryReport"></div></div>
+      <div class="card"><h3>Fluxo diário acumulado</h3><canvas id="dailyChart" width="600" height="300"></canvas></div>
+    </div>
+    <div class="card" style="margin-top:16px">
+      <h3>Demonstrativo do período</h3>
+      <div class="table-wrap"><table><thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Receita</th><th>Despesa</th><th>Saldo acumulado</th></tr></thead><tbody id="reportBody"></tbody></table></div>
+    </div>
+  </section>
+
+  <section id="configuracoes" class="page">
+    <div class="grid grid-2">
+      <div class="card">
+        <h2>Categorias</h2>
+        <div class="grid grid-2">
+          <div>
+            <h3>Receitas</h3>
+            <div id="incomeCategories"></div>
+            <input id="newIncomeCategory" placeholder="Nova categoria">
+            <button id="addIncomeCategory" class="btn-primary" style="margin-top:8px">Adicionar</button>
+          </div>
+          <div>
+            <h3>Despesas</h3>
+            <div id="expenseCategories"></div>
+            <input id="newExpenseCategory" placeholder="Nova categoria">
+            <button id="addExpenseCategory" class="btn-primary" style="margin-top:8px">Adicionar</button>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Dados</h2>
+        <p>Os dados ficam armazenados neste navegador por meio do <strong>localStorage</strong>.</p>
+        <div class="actions">
+          <button id="backupBtn" class="btn-green">Baixar backup JSON</button>
+          <label class="btn-secondary" style="cursor:pointer">Importar backup<input type="file" id="restoreInput" accept=".json" style="display:none"></label>
+          <button id="sampleBtn" class="btn-secondary">Carregar dados de exemplo</button>
+          <button id="resetBtn" class="btn-danger">Apagar todos os dados</button>
+        </div>
+        <p class="footer-note">Para uso multiusuário, integração bancária e acesso em nuvem, será necessário conectar este protótipo a um banco de dados e sistema de autenticação.</p>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+const BRL = new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'});
+const KEY='llsilvax_finance_v1';
+const CATKEY='llsilvax_categories_v1';
+let editId=null;
+
+const defaultCategories={
+  receita:['Taxa condominial','Fundo de reserva','Multas e juros','Aluguel de área comum','Outras receitas'],
+  despesa:['Água','Energia elétrica','Gás','Limpeza','Manutenção','Elevadores','Segurança','Administrativo','Impostos e taxas','Obras','Outras despesas']
+};
+
+function loadTransactions(){return JSON.parse(localStorage.getItem(KEY)||'[]')}
+function saveTransactions(data){localStorage.setItem(KEY,JSON.stringify(data))}
+function loadCategories(){return JSON.parse(localStorage.getItem(CATKEY)||JSON.stringify(defaultCategories))}
+function saveCategories(data){localStorage.setItem(CATKEY,JSON.stringify(data))}
+function today(){return new Date().toISOString().slice(0,10)}
+function currentMonth(){return new Date().toISOString().slice(0,7)}
+function esc(s=''){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+function monthName(m){const [y,mo]=m.split('-');return new Date(y,mo-1,1).toLocaleDateString('pt-BR',{month:'long',year:'numeric'})}
+
+function populateCategories(){
+  const cats=loadCategories();
+  const type=document.getElementById('type').value;
+  document.getElementById('category').innerHTML=cats[type].map(c=>`<option>${esc(c)}</option>`).join('');
+}
+function renderCategorySettings(){
+  const cats=loadCategories();
+  const render=(arr,type)=>arr.map((c,i)=>`<div style="display:flex;justify-content:space-between;gap:8px;padding:7px 0;border-bottom:1px solid #eee"><span>${esc(c)}</span><button class="btn-danger" onclick="removeCategory('${type}',${i})">Excluir</button></div>`).join('');
+  incomeCategories.innerHTML=render(cats.receita,'receita');
+  expenseCategories.innerHTML=render(cats.despesa,'despesa');
+}
+window.removeCategory=(type,index)=>{
+  const cats=loadCategories();
+  if(cats[type].length<=1)return alert('Mantenha pelo menos uma categoria.');
+  cats[type].splice(index,1);saveCategories(cats);renderCategorySettings();populateCategories();
+}
+
+function getFiltered(month,type='',search=''){
+  return loadTransactions().filter(t=>(!month||t.date.startsWith(month))&&(!type||t.type===type)&&(!search||t.description.toLowerCase().includes(search.toLowerCase())));
+}
+
+function renderTransactions(){
+  const data=getFiltered(filterMonth.value,filterType.value,filterSearch.value).sort((a,b)=>b.date.localeCompare(a.date));
+  transactionsBody.innerHTML=data.length?data.map(t=>`
+    <tr><td>${new Date(t.date+'T12:00').toLocaleDateString('pt-BR')}</td><td>${esc(t.description)}</td>
+    <td><span class="badge ${t.type}">${t.type==='receita'?'Receita':'Despesa'}</span></td>
+    <td>${esc(t.category)}</td><td>${esc(t.status)}</td>
+    <td class="${t.type==='receita'?'positive':'negative'}">${BRL.format(t.amount)}</td>
+    <td><button class="btn-secondary" onclick="editTransaction('${t.id}')">Editar</button> <button class="btn-danger" onclick="deleteTransaction('${t.id}')">Excluir</button></td></tr>`).join(''):`<tr><td colspan="7" class="empty">Nenhum lançamento encontrado.</td></tr>`;
+}
+window.deleteTransaction=id=>{
+  if(!confirm('Excluir este lançamento?'))return;
+  saveTransactions(loadTransactions().filter(t=>t.id!==id));refreshAll();
+}
+window.editTransaction=id=>{
+  const t=loadTransactions().find(x=>x.id===id);if(!t)return;
+  editId=id;date.value=t.date;type.value=t.type;populateCategories();category.value=t.category;amount.value=t.amount;
+  description.value=t.description;payment.value=t.payment;document.getElementById('document').value=t.document||'';status.value=t.status;
+  document.querySelector('[data-page="lancamentos"]').click();window.scrollTo({top:0,behavior:'smooth'});
+}
+
+transactionForm.addEventListener('submit',e=>{
+  e.preventDefault();
+  const item={id:editId||crypto.randomUUID(),date:date.value,type:type.value,category:category.value,
+    amount:Number(amount.value),description:description.value.trim(),payment:payment.value,
+    document:document.getElementById('document').value.trim(),status:status.value};
+  const data=loadTransactions();
+  if(editId){const i=data.findIndex(x=>x.id===editId);data[i]=item}else data.push(item);
+  saveTransactions(data);transactionForm.reset();date.value=today();editId=null;populateCategories();refreshAll();
+  alert('Lançamento salvo com sucesso.');
+});
+clearForm.onclick=()=>{transactionForm.reset();date.value=today();editId=null;populateCategories()}
+type.onchange=populateCategories;
+[filterMonth,filterType,filterSearch].forEach(el=>el.addEventListener('input',renderTransactions));
+
+function totals(data){
+  const receitas=data.filter(t=>t.type==='receita').reduce((s,t)=>s+t.amount,0);
+  const despesas=data.filter(t=>t.type==='despesa').reduce((s,t)=>s+t.amount,0);
+  return {receitas,despesas,saldo:receitas-despesas};
+}
+
+function drawBarChart(canvas,labels,series){
+  const ctx=canvas.getContext('2d'),w=canvas.width,h=canvas.height;ctx.clearRect(0,0,w,h);
+  const pad=45,max=Math.max(1,...series.flatMap(s=>s.values));ctx.font='12px Arial';ctx.fillStyle='#6b7280';
+  ctx.strokeStyle='#dbe2ea';ctx.beginPath();ctx.moveTo(pad,15);ctx.lineTo(pad,h-pad);ctx.lineTo(w-10,h-pad);ctx.stroke();
+  const group=(w-pad-20)/Math.max(labels.length,1),bar=Math.min(26,group/(series.length+1));
+  labels.forEach((lab,i)=>{
+    series.forEach((s,j)=>{
+      const val=s.values[i]||0,bh=(h-pad-30)*val/max,x=pad+i*group+group/2-(series.length*bar)/2+j*bar;
+      ctx.fillStyle=s.color;ctx.fillRect(x,h-pad-bh,bar-3,bh);
+    });
+    ctx.fillStyle='#4b5563';ctx.textAlign='center';ctx.fillText(lab,pad+i*group+group/2,h-pad+18);
+  });
+  series.forEach((s,i)=>{ctx.fillStyle=s.color;ctx.fillRect(pad+i*130,2,12,12);ctx.fillStyle='#374151';ctx.textAlign='left';ctx.fillText(s.name,pad+18+i*130,12)});
+}
+function drawPieChart(canvas,items){
+  const ctx=canvas.getContext('2d'),w=canvas.width,h=canvas.height;ctx.clearRect(0,0,w,h);
+  const total=items.reduce((s,x)=>s+x.value,0);if(!total){ctx.fillStyle='#6b7280';ctx.textAlign='center';ctx.fillText('Sem despesas no período',w/2,h/2);return}
+  const colors=['#1f4e78','#2f75b5','#5b9bd5','#70ad47','#ffc000','#ed7d31','#a5a5a5','#8064a2','#c55a11','#264478'];
+  let start=-Math.PI/2;items.forEach((it,i)=>{const end=start+it.value/total*Math.PI*2;ctx.beginPath();ctx.moveTo(170,150);ctx.arc(170,150,105,start,end);ctx.closePath();ctx.fillStyle=colors[i%colors.length];ctx.fill();start=end});
+  ctx.font='12px Arial';items.slice(0,8).forEach((it,i)=>{ctx.fillStyle=colors[i%colors.length];ctx.fillRect(320,30+i*28,12,12);ctx.fillStyle='#374151';ctx.fillText(`${it.name}: ${BRL.format(it.value)}`,340,40+i*28)});
+}
+function drawLineChart(canvas,points){
+  const ctx=canvas.getContext('2d'),w=canvas.width,h=canvas.height;ctx.clearRect(0,0,w,h);
+  const pad=45,max=Math.max(1,...points.map(p=>Math.abs(p.value)));ctx.strokeStyle='#dbe2ea';ctx.beginPath();ctx.moveTo(pad,15);ctx.lineTo(pad,h-pad);ctx.lineTo(w-10,h-pad);ctx.stroke();
+  if(!points.length)return;
+  ctx.strokeStyle='#1f4e78';ctx.lineWidth=3;ctx.beginPath();
+  points.forEach((p,i)=>{const x=pad+i*(w-pad-20)/Math.max(points.length-1,1);const y=h-pad-(h-pad-30)*(p.value+max)/(2*max);i?ctx.lineTo(x,y):ctx.moveTo(x,y)});
+  ctx.stroke();ctx.fillStyle='#1f4e78';
+  points.forEach((p,i)=>{const x=pad+i*(w-pad-20)/Math.max(points.length-1,1);const y=h-pad-(h-pad-30)*(p.value+max)/(2*max);ctx.beginPath();ctx.arc(x,y,4,0,Math.PI*2);ctx.fill();if(i%Math.ceil(points.length/8)===0){ctx.fillStyle='#4b5563';ctx.textAlign='center';ctx.fillText(p.label,x,h-pad+18);ctx.fillStyle='#1f4e78'}});
+}
+
+function renderDashboard(){
+  const month=dashboardMonth.value,data=getFiltered(month),t=totals(data);
+  kpiReceitas.textContent=BRL.format(t.receitas);kpiDespesas.textContent=BRL.format(t.despesas);kpiSaldo.textContent=BRL.format(t.saldo);
+  kpiSaldo.className=t.saldo>=0?'positive':'negative';kpiQtd.textContent=data.length;
+  recentBody.innerHTML=loadTransactions().sort((a,b)=>b.date.localeCompare(a.date)).slice(0,6).map(x=>`<tr><td>${new Date(x.date+'T12:00').toLocaleDateString('pt-BR')}</td><td>${esc(x.description)}</td><td><span class="badge ${x.type}">${x.type}</span></td><td>${esc(x.category)}</td><td>${BRL.format(x.amount)}</td></tr>`).join('')||`<tr><td colspan="5" class="empty">Sem dados.</td></tr>`;
+  const base=new Date(month+'-01T12:00'),months=[];
+  for(let i=5;i>=0;i--){const d=new Date(base.getFullYear(),base.getMonth()-i,1);months.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`)}
+  drawBarChart(trendChart,months.map(m=>monthName(m).split(' de ')[0].slice(0,3)),[
+    {name:'Receitas',color:'#14804a',values:months.map(m=>totals(getFiltered(m)).receitas)},
+    {name:'Despesas',color:'#c0392b',values:months.map(m=>totals(getFiltered(m)).despesas)}
+  ]);
+  const by={};data.filter(x=>x.type==='despesa').forEach(x=>by[x.category]=(by[x.category]||0)+x.amount);
+  drawPieChart(categoryChart,Object.entries(by).map(([name,value])=>({name,value})).sort((a,b)=>b.value-a.value));
+}
+
+function renderReport(){
+  const data=getFiltered(reportMonth.value).sort((a,b)=>a.date.localeCompare(b.date)),t=totals(data);
+  rReceitas.textContent=BRL.format(t.receitas);rDespesas.textContent=BRL.format(t.despesas);rSaldo.textContent=BRL.format(t.saldo);
+  rSaldo.className=t.saldo>=0?'positive':'negative';
+  rPendentes.textContent=BRL.format(data.filter(x=>x.type==='despesa'&&x.status==='Pendente').reduce((s,x)=>s+x.amount,0));
+  const by={};data.forEach(x=>{by[x.category]=by[x.category]||{receita:0,despesa:0};by[x.category][x.type]+=x.amount});
+  categoryReport.innerHTML=`<div class="table-wrap"><table><thead><tr><th>Categoria</th><th>Receitas</th><th>Despesas</th><th>Resultado</th></tr></thead><tbody>${Object.entries(by).map(([k,v])=>`<tr><td>${esc(k)}</td><td>${BRL.format(v.receita)}</td><td>${BRL.format(v.despesa)}</td><td>${BRL.format(v.receita-v.despesa)}</td></tr>`).join('')||'<tr><td colspan="4" class="empty">Sem dados.</td></tr>'}</tbody></table></div>`;
+  let acc=0;reportBody.innerHTML=data.map(x=>{acc+=x.type==='receita'?x.amount:-x.amount;return `<tr><td>${new Date(x.date+'T12:00').toLocaleDateString('pt-BR')}</td><td>${esc(x.description)}</td><td>${esc(x.category)}</td><td>${x.type==='receita'?BRL.format(x.amount):''}</td><td>${x.type==='despesa'?BRL.format(x.amount):''}</td><td>${BRL.format(acc)}</td></tr>`}).join('')||'<tr><td colspan="6" class="empty">Sem dados.</td></tr>';
+  const daily={};let balance=0;data.forEach(x=>{balance+=x.type==='receita'?x.amount:-x.amount;daily[x.date]=balance});
+  drawLineChart(dailyChart,Object.entries(daily).map(([d,value])=>({label:d.slice(8,10),value})));
+}
+
+function refreshAll(){renderTransactions();renderDashboard();renderReport();renderCategorySettings()}
+document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));b.classList.add('active');document.getElementById(b.dataset.page).classList.add('active');refreshAll()});
+dashboardMonth.onchange=renderDashboard;reportMonth.onchange=renderReport;
+
+addIncomeCategory.onclick=()=>addCategory('receita',newIncomeCategory);
+addExpenseCategory.onclick=()=>addCategory('despesa',newExpenseCategory);
+function addCategory(type,input){const v=input.value.trim();if(!v)return;const cats=loadCategories();if(!cats[type].includes(v))cats[type].push(v);saveCategories(cats);input.value='';renderCategorySettings();populateCategories()}
+
+exportCsv.onclick=()=>{
+  const rows=getFiltered(filterMonth.value,filterType.value,filterSearch.value);
+  const csv=['Data;Tipo;Categoria;Descrição;Forma de pagamento;Documento;Status;Valor',...rows.map(x=>[x.date,x.type,x.category,x.description,x.payment,x.document||'',x.status,x.amount.toFixed(2).replace('.',',')].map(v=>`"${String(v).replaceAll('"','""')}"`).join(';'))].join('\n');
+  downloadBlob('\uFEFF'+csv,'lancamentos-llsilvax.csv','text/csv;charset=utf-8');
+}
+backupBtn.onclick=()=>downloadBlob(JSON.stringify({transactions:loadTransactions(),categories:loadCategories()},null,2),'backup-llsilvax.json','application/json');
+function downloadBlob(content,name,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([content],{type}));a.download=name;a.click();URL.revokeObjectURL(a.href)}
+restoreInput.onchange=async e=>{try{const obj=JSON.parse(await e.target.files[0].text());saveTransactions(obj.transactions||[]);saveCategories(obj.categories||defaultCategories);refreshAll();alert('Backup importado.')}catch{alert('Arquivo inválido.')}};
+resetBtn.onclick=()=>{if(confirm('Apagar permanentemente todos os lançamentos?')){localStorage.removeItem(KEY);localStorage.removeItem(CATKEY);refreshAll()}};
+sampleBtn.onclick=()=>{
+  if(loadTransactions().length&&!confirm('Adicionar dados de exemplo aos dados atuais?'))return;
+  const m=currentMonth(),y=m.slice(0,4),mo=m.slice(5),d=n=>`${y}-${mo}-${String(n).padStart(2,'0')}`;
+  const sample=[
+    [d(5),'receita','Taxa condominial',8500,'Recebimento das taxas condominiais','Boleto','Pago/Recebido'],
+    [d(7),'despesa','Energia elétrica',1250,'Conta de energia das áreas comuns','Débito automático','Pago/Recebido'],
+    [d(8),'despesa','Limpeza',2100,'Serviço mensal de limpeza','Transferência','Pago/Recebido'],
+    [d(10),'despesa','Manutenção',780,'Manutenção preventiva da bomba','Pix','Pago/Recebido'],
+    [d(12),'receita','Multas e juros',240,'Multas e juros por atraso','Pix','Pago/Recebido'],
+    [d(15),'despesa','Água',980,'Conta de água','Boleto','Pendente']
+  ].map(x=>({id:crypto.randomUUID(),date:x[0],type:x[1],category:x[2],amount:x[3],description:x[4],payment:x[5],status:x[6],document:''}));
+  saveTransactions([...loadTransactions(),...sample]);refreshAll();
+};
+
+date.value=today();dashboardMonth.value=currentMonth();filterMonth.value=currentMonth();reportMonth.value=currentMonth();
+populateCategories();refreshAll();
+</script>
+
+<script>
+let deferredInstallPrompt = null;
+const installButton = document.getElementById('installApp');
+
+window.addEventListener('beforeinstallprompt', event => {
+  event.preventDefault();
+  deferredInstallPrompt = event;
+  installButton.style.display = 'inline-block';
+});
+
+installButton?.addEventListener('click', async () => {
+  if (!deferredInstallPrompt) return;
+  deferredInstallPrompt.prompt();
+  await deferredInstallPrompt.userChoice;
+  deferredInstallPrompt = null;
+  installButton.style.display = 'none';
+});
+
+window.addEventListener('appinstalled', () => {
+  installButton.style.display = 'none';
+});
+
+if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./service-worker.js')
+      .catch(error => console.warn('Falha ao registrar o modo offline:', error));
+  });
+}
+</script>
+
+</body>
+</html>
