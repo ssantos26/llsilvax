@@ -8,7 +8,7 @@
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="icon" href="icons/icon-192.png" />
   <link rel="apple-touch-icon" href="icons/icon-192.png" />
-  <title>Condomínio LLSILVA X — Controle Financeiro</title>
+  <title>Condomínio LLSILVA X — Gestão 2.0</title>
   <style>
     :root{
       --bg:#f4f6f8; --card:#ffffff; --text:#1f2937; --muted:#6b7280;
@@ -81,13 +81,15 @@
     <button class="tab active" data-page="dashboard">Visão geral</button>
     <button class="tab" data-page="lancamentos">Lançamentos</button>
     <button class="tab" data-page="relatorios">Relatórios</button>
+    <button class="tab" data-page="orcamento">Orçamento</button>
+    <button class="tab" data-page="glp">GLP</button>
     <button class="tab" data-page="configuracoes">Configurações</button>
   </div>
 
   <section id="dashboard" class="page active">
     <div class="toolbar">
-      <h2>Resumo mensal</h2>
-      <input type="month" id="dashboardMonth">
+      <h2>Visão geral</h2>
+      <div class="filters"><select id="dashboardMode"><option value="month">Mensal</option><option value="year">Anual (12 meses)</option></select><input type="month" id="dashboardMonth"><select id="dashboardYear" style="display:none"></select></div>
     </div>
     <div class="grid grid-4">
       <div class="card kpi"><small>Receitas</small><strong id="kpiReceitas" class="positive">R$ 0,00</strong></div>
@@ -96,7 +98,7 @@
       <div class="card kpi"><small>Lançamentos</small><strong id="kpiQtd">0</strong></div>
     </div>
     <div class="grid grid-2" style="margin-top:16px">
-      <div class="card"><h3>Receitas x despesas — últimos 6 meses</h3><canvas id="trendChart" width="600" height="300"></canvas></div>
+      <div class="card"><h3>Receitas x despesas — evolução do período</h3><canvas id="trendChart" width="600" height="300"></canvas></div>
       <div class="card"><h3>Despesas por categoria</h3><canvas id="categoryChart" width="600" height="300"></canvas></div>
     </div>
     <div class="card" style="margin-top:16px">
@@ -111,7 +113,7 @@
       <form id="transactionForm">
         <div><label>Data<input type="date" id="date" required></label></div>
         <div><label>Tipo<select id="type" required><option value="receita">Receita</option><option value="despesa">Despesa</option></select></label></div>
-        <div><label>Categoria<select id="category" required></select></label></div>
+        <div><label>Categoria<select id="category" required></select></label></div><div id="budgetLinkWrap" style="display:none"><label>Item previsto no orçamento<select id="transactionBudgetItem"><option value="">Sem vínculo orçamentário</option></select></label></div>
         <div><label>Valor (R$)<input type="number" id="amount" step="0.01" min="0.01" required></label></div>
         <div class="full"><label>Descrição<input type="text" id="description" maxlength="120" required placeholder="Ex.: Taxa condominial - Apto 101"></label></div>
         <div><label>Forma de pagamento<select id="payment"><option>Pix</option><option>Boleto</option><option>Transferência</option><option>Dinheiro</option><option>Cartão</option><option>Débito automático</option></select></label></div>
@@ -145,7 +147,7 @@
       <h2>Relatório mensal</h2>
       <div class="filters">
         <input type="month" id="reportMonth">
-        <button onclick="window.print()" class="btn-secondary no-print">Imprimir / Salvar PDF</button>
+        <button id="reportDetailedPdf" class="btn-primary no-print">PDF reunião mensal</button><button id="reportExpensesPdf" class="btn-secondary no-print">PDF despesas</button><button id="reportPublicPdf" class="btn-green no-print">PDF quadro de avisos</button><button id="reportAnnualPdf" class="btn-secondary no-print">PDF anual</button>
       </div>
     </div>
     <div class="grid grid-4">
@@ -156,12 +158,34 @@
     </div>
     <div class="grid grid-2" style="margin-top:16px">
       <div class="card"><h3>Resumo por categoria</h3><div id="categoryReport"></div></div>
-      <div class="card"><h3>Fluxo diário acumulado</h3><canvas id="dailyChart" width="600" height="300"></canvas></div>
+      <div class="card"><h3>Distribuição das despesas (%)</h3><div id="reportPercent"></div></div>
     </div>
     <div class="card" style="margin-top:16px">
       <h3>Demonstrativo do período</h3>
       <div class="table-wrap"><table><thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Receita</th><th>Despesa</th><th>Saldo acumulado</th></tr></thead><tbody id="reportBody"></tbody></table></div>
     </div>
+  </section>
+
+
+  <section id="orcamento" class="page">
+    <div class="toolbar"><h2>Controle orçamentário — previsto x realizado</h2><input type="month" id="budgetMonth"></div>
+    <div class="card"><h3>Planejamento por item</h3><form id="budgetForm">
+      <div><label>Categoria<select id="budgetCategory" required></select></label></div>
+      <div><label>Descrição do item<input id="budgetDescription" required maxlength="120" placeholder="Ex.: manutenção de bombas"></label></div>
+      <div><label>Valor previsto (R$)<input type="number" id="budgetAmount" min="0" step="0.01" required></label></div>
+      <div class="actions"><button type="submit" id="budgetSubmit" class="btn-primary">Adicionar ao orçamento</button><button type="button" id="budgetCancel" class="btn-secondary" style="display:none">Cancelar edição</button></div>
+    </form></div>
+    <div class="grid grid-4" style="margin-top:16px"><div class="card kpi"><small>Previsto</small><strong id="budgetPlanned">—</strong></div><div class="card kpi"><small>Realizado</small><strong id="budgetActual">—</strong></div><div class="card kpi"><small>Execução</small><strong id="budgetPct">—</strong></div><div class="card kpi"><small>Diferença (previsto - realizado)</small><strong id="budgetDiff">—</strong></div></div>
+    <div class="card" style="margin-top:16px"><p id="budgetStatusWarning" style="color:#9a3412;font-weight:bold" role="status"></p><h3>Itens previstos</h3><div class="table-wrap"><table><thead><tr><th>Categoria</th><th>Descrição</th><th>Previsto</th><th>Realizado</th><th>Execução</th><th>Ações</th></tr></thead><tbody id="budgetBody"></tbody></table></div></div>
+    <div class="card" style="margin-top:16px"><h3>Comparativo por categoria</h3><p class="footer-note">Realizado considera despesas com status Pago/Recebido no mês selecionado. Itens pendentes não entram no realizado.</p><div class="table-wrap"><table><thead><tr><th>Categoria</th><th>Previsto</th><th>Realizado</th><th>Execução</th><th>Diferença</th></tr></thead><tbody id="budgetCompare"></tbody></table></div></div>
+  </section>
+  <section id="glp" class="page">
+    <div class="toolbar"><h2>Leituras de gás GLP</h2><input type="month" id="glpMonth"></div>
+    <div class="card"><p>Registre a leitura do medidor em m³. O consumo é a diferença entre a leitura atual e a anterior do mesmo apartamento; não há conversão automática para kg nesta versão.</p>
+    <form id="glpForm"><div><label>Apartamento<input id="glpApartment" required maxlength="12" placeholder="101"></label></div><div><label>Data da leitura<input id="glpDate" type="date" required></label></div><div><label>Leitura (m³)<input id="glpReading" type="number" min="0" step="0.001" required></label></div><div><label>Observação<input id="glpNote" maxlength="120" placeholder="Opcional"></label></div><div class="actions"><button type="submit" id="glpSaveBtn" class="btn-primary">Salvar leitura</button><button type="button" id="glpCancelEdit" class="btn-secondary" style="display:none">Cancelar edição</button></div></form></div>
+    <div class="card" style="margin-top:16px"><h3>Conversão de GLP</h3><label>Fator de conversão (kg por m³)<input id="glpFactor" type="number" min="0.000001" step="any" placeholder="Informe o fator fornecido pelo responsável técnico"></label><p class="footer-note">Sem fator configurado, o consumo em kg não será calculado. O fator deve corresponder às condições e ao critério de medição do condomínio.</p></div>
+    <div class="card" style="margin-top:16px"><h3>Consumo nos últimos 12 meses</h3><div class="filters" style="margin-bottom:12px"><select id="glpChartMode"><option value="all">Geral do condomínio</option><option value="apartment">Por apartamento</option></select><select id="glpChartApartment" style="display:none"></select><select id="glpChartUnit"><option value="m3">m³</option><option value="kg">kg</option></select></div><p id="glpChartNote" class="footer-note"></p><canvas id="glpChart" width="750" height="360" aria-label="Gráfico de barras do consumo de GLP"></canvas><div style="margin-top:12px"><button type="button" id="glpPdfBtn" class="btn-primary">Gerar PDF do gráfico GLP</button></div></div>
+    <div class="card" style="margin-top:16px"><div class="toolbar"><h3 style="margin:0">Leituras do mês</h3><button type="button" id="glpReadingsPdfBtn" class="btn-primary no-print">PDF — Leituras do mês</button></div><div class="table-wrap"><table><thead><tr><th>Apto</th><th>Data</th><th>Anterior (m³)</th><th>Atual (m³)</th><th>Consumo (m³)</th><th>Consumo (kg)</th><th>Observação</th><th>Ações</th></tr></thead><tbody id="glpBody"></tbody></table></div></div>
   </section>
 
   <section id="configuracoes" class="page">
@@ -184,8 +208,8 @@
         </div>
       </div>
       <div class="card">
-        <h2>Dados</h2>
-        <p>Os dados ficam armazenados neste navegador por meio do <strong>localStorage</strong>.</p>
+        <h2>Dados e backup — Versão 2.0</h2>
+        <p>Os dados ficam armazenados <strong>somente neste navegador</strong>. Faça backups frequentes, especialmente antes de atualizar ou trocar de aparelho. Não envie backups financeiros para repositórios públicos.</p>
         <div class="actions">
           <button id="backupBtn" class="btn-green">Baixar backup JSON</button>
           <label class="btn-secondary" style="cursor:pointer">Importar backup<input type="file" id="restoreInput" accept=".json" style="display:none"></label>
@@ -202,7 +226,9 @@
 const BRL = new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'});
 const KEY='llsilvax_finance_v1';
 const CATKEY='llsilvax_categories_v1';
+const BUDGETKEY='llsilvax_budget_v2', GLPKEY='llsilvax_glp_v2', GLPFACTORKEY='llsilvax_glp_factor_v2';
 let editId=null;
+let editingBudgetId=null;
 
 const defaultCategories={
   receita:['Taxa condominial','Fundo de reserva','Multas e juros','Aluguel de área comum','Outras receitas'],
@@ -213,6 +239,10 @@ function loadTransactions(){return JSON.parse(localStorage.getItem(KEY)||'[]')}
 function saveTransactions(data){localStorage.setItem(KEY,JSON.stringify(data))}
 function loadCategories(){return JSON.parse(localStorage.getItem(CATKEY)||JSON.stringify(defaultCategories))}
 function saveCategories(data){localStorage.setItem(CATKEY,JSON.stringify(data))}
+function loadBudget(){return JSON.parse(localStorage.getItem(BUDGETKEY)||'[]')}
+function saveBudget(v){localStorage.setItem(BUDGETKEY,JSON.stringify(v))}
+function loadGlp(){return JSON.parse(localStorage.getItem(GLPKEY)||'[]')}
+function saveGlp(v){localStorage.setItem(GLPKEY,JSON.stringify(v))}
 function today(){return new Date().toISOString().slice(0,10)}
 function currentMonth(){return new Date().toISOString().slice(0,7)}
 function esc(s=''){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
@@ -244,7 +274,7 @@ function renderTransactions(){
   transactionsBody.innerHTML=data.length?data.map(t=>`
     <tr><td>${new Date(t.date+'T12:00').toLocaleDateString('pt-BR')}</td><td>${esc(t.description)}</td>
     <td><span class="badge ${t.type}">${t.type==='receita'?'Receita':'Despesa'}</span></td>
-    <td>${esc(t.category)}</td><td>${esc(t.status)}</td>
+    <td>${esc(t.category)}</td><td>${esc(t.status||'Não informado')}</td>
     <td class="${t.type==='receita'?'positive':'negative'}">${BRL.format(t.amount)}</td>
     <td><button class="btn-secondary" onclick="editTransaction('${t.id}')">Editar</button> <button class="btn-danger" onclick="deleteTransaction('${t.id}')">Excluir</button></td></tr>`).join(''):`<tr><td colspan="7" class="empty">Nenhum lançamento encontrado.</td></tr>`;
 }
@@ -255,7 +285,7 @@ window.deleteTransaction=id=>{
 window.editTransaction=id=>{
   const t=loadTransactions().find(x=>x.id===id);if(!t)return;
   editId=id;date.value=t.date;type.value=t.type;populateCategories();category.value=t.category;amount.value=t.amount;
-  description.value=t.description;payment.value=t.payment;document.getElementById('document').value=t.document||'';status.value=t.status;
+  description.value=t.description;updateBudgetLink();transactionBudgetItem.value=t.budgetItemId||'';payment.value=t.payment;document.getElementById('document').value=t.document||'';document.getElementById('status').value=['Pago/Recebido','Pendente'].includes(t.status)?t.status:'Pago/Recebido';
   document.querySelector('[data-page="lancamentos"]').click();window.scrollTo({top:0,behavior:'smooth'});
 }
 
@@ -263,14 +293,14 @@ transactionForm.addEventListener('submit',e=>{
   e.preventDefault();
   const item={id:editId||crypto.randomUUID(),date:date.value,type:type.value,category:category.value,
     amount:Number(amount.value),description:description.value.trim(),payment:payment.value,
-    document:document.getElementById('document').value.trim(),status:status.value};
+    document:document.getElementById('document').value.trim(),status:document.getElementById('status').value,budgetItemId:type.value==='despesa'?(transactionBudgetItem.value||''):''};
   const data=loadTransactions();
   if(editId){const i=data.findIndex(x=>x.id===editId);data[i]=item}else data.push(item);
-  saveTransactions(data);transactionForm.reset();date.value=today();editId=null;populateCategories();refreshAll();
+  saveTransactions(data);transactionForm.reset();date.value=today();editId=null;populateCategories();updateBudgetLink();refreshAll();
   alert('Lançamento salvo com sucesso.');
 });
-clearForm.onclick=()=>{transactionForm.reset();date.value=today();editId=null;populateCategories()}
-type.onchange=populateCategories;
+clearForm.onclick=()=>{transactionForm.reset();date.value=today();editId=null;populateCategories();updateBudgetLink()}
+type.onchange=()=>{populateCategories();updateBudgetLink()};category.addEventListener('change',updateBudgetLink);date.addEventListener('change',updateBudgetLink);
 [filterMonth,filterType,filterSearch].forEach(el=>el.addEventListener('input',renderTransactions));
 
 function totals(data){
@@ -293,6 +323,48 @@ function drawBarChart(canvas,labels,series){
   });
   series.forEach((s,i)=>{ctx.fillStyle=s.color;ctx.fillRect(pad+i*130,2,12,12);ctx.fillStyle='#374151';ctx.textAlign='left';ctx.fillText(s.name,pad+18+i*130,12)});
 }
+// Gráfico de GLP: escala automática no eixo Y e meses inclinados em Arial normal.
+function drawGlpBarChart(canvas,months,values,unit){
+  const ctx=canvas.getContext('2d'),w=canvas.width,h=canvas.height;
+  ctx.clearRect(0,0,w,h);
+  const left=66,right=14,top=30,bottom=102,baseline=h-bottom;
+  const peak=Math.max(0,...values.filter(Number.isFinite));
+  // Intervalos legíveis de 1, 2, 2.5, 5 ou 10 × potência de dez.
+  const rawStep=(peak||1)/5;
+  const magnitude=Math.pow(10,Math.floor(Math.log10(rawStep)));
+  const step=[1,2,2.5,5,10].map(n=>n*magnitude).find(n=>n>=rawStep-1e-12)||10*magnitude;
+  const max=step*5;
+  const plotH=baseline-top;
+  const group=(w-left-right)/Math.max(months.length,1);
+  const barWidth=Math.min(30,group*0.55);
+  const fmt=n=>n.toLocaleString('pt-BR',{maximumFractionDigits:Math.min(6,Math.max(0,-Math.floor(Math.log10(step))+1))});
+  ctx.font='normal 11px Arial, Helvetica, sans-serif';
+  for(let i=0;i<=5;i++){
+    const value=i*step,y=baseline-i*plotH/5;
+    ctx.strokeStyle=i===0?'#9aa9b8':'#e4eaf0';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(left,y);ctx.lineTo(w-right,y);ctx.stroke();
+    ctx.fillStyle='#4b5563';ctx.textAlign='right';ctx.textBaseline='middle';
+    ctx.fillText(fmt(value),left-8,y);
+  }
+  ctx.strokeStyle='#9aa9b8';ctx.beginPath();ctx.moveTo(left,top);ctx.lineTo(left,baseline);ctx.stroke();
+  const names=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+  months.forEach((m,i)=>{
+    const x=left+(i+0.5)*group;
+    const v=Math.max(0,Number(values[i])||0);
+    const bh=v/max*plotH;
+    ctx.fillStyle='#2f75b5';ctx.fillRect(x-barWidth/2,baseline-bh,barWidth,bh);
+    const [year,month]=m.split('-');
+    const label=names[Number(month)-1]+'/'+year;
+    ctx.save();ctx.translate(x+4,baseline+12);ctx.rotate(-Math.PI/4);
+    ctx.font='normal 12px Arial, Helvetica, sans-serif';
+    ctx.fillStyle='#374151';ctx.textAlign='right';ctx.textBaseline='alphabetic';
+    ctx.fillText(label,0,0);ctx.restore();
+  });
+  ctx.fillStyle='#2f75b5';ctx.fillRect(left,5,12,12);
+  ctx.fillStyle='#374151';ctx.font='normal 12px Arial';ctx.textAlign='left';ctx.textBaseline='alphabetic';
+  ctx.fillText('Consumo ('+unit+')',left+18,15);
+}
+
 function drawPieChart(canvas,items){
   const ctx=canvas.getContext('2d'),w=canvas.width,h=canvas.height;ctx.clearRect(0,0,w,h);
   const total=items.reduce((s,x)=>s+x.value,0);if(!total){ctx.fillStyle='#6b7280';ctx.textAlign='center';ctx.fillText('Sem despesas no período',w/2,h/2);return}
@@ -311,12 +383,15 @@ function drawLineChart(canvas,points){
 }
 
 function renderDashboard(){
-  const month=dashboardMonth.value,data=getFiltered(month),t=totals(data);
+  const annual=dashboardMode.value==='year';
+  dashboardMonth.style.display=annual?'none':'block';dashboardYear.style.display=annual?'block':'none';
+  const month=dashboardMonth.value,period=annual?dashboardYear.value:month,data=getFiltered(period),t=totals(data);
   kpiReceitas.textContent=BRL.format(t.receitas);kpiDespesas.textContent=BRL.format(t.despesas);kpiSaldo.textContent=BRL.format(t.saldo);
   kpiSaldo.className=t.saldo>=0?'positive':'negative';kpiQtd.textContent=data.length;
   recentBody.innerHTML=loadTransactions().sort((a,b)=>b.date.localeCompare(a.date)).slice(0,6).map(x=>`<tr><td>${new Date(x.date+'T12:00').toLocaleDateString('pt-BR')}</td><td>${esc(x.description)}</td><td><span class="badge ${x.type}">${x.type}</span></td><td>${esc(x.category)}</td><td>${BRL.format(x.amount)}</td></tr>`).join('')||`<tr><td colspan="5" class="empty">Sem dados.</td></tr>`;
   const base=new Date(month+'-01T12:00'),months=[];
-  for(let i=5;i>=0;i--){const d=new Date(base.getFullYear(),base.getMonth()-i,1);months.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`)}
+  if(annual){for(let i=1;i<=12;i++)months.push(`${dashboardYear.value}-${String(i).padStart(2,'0')}`)}
+  else for(let i=5;i>=0;i--){const d=new Date(base.getFullYear(),base.getMonth()-i,1);months.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`)}
   drawBarChart(trendChart,months.map(m=>monthName(m).split(' de ')[0].slice(0,3)),[
     {name:'Receitas',color:'#14804a',values:months.map(m=>totals(getFiltered(m)).receitas)},
     {name:'Despesas',color:'#c0392b',values:months.map(m=>totals(getFiltered(m)).despesas)}
@@ -333,13 +408,13 @@ function renderReport(){
   const by={};data.forEach(x=>{by[x.category]=by[x.category]||{receita:0,despesa:0};by[x.category][x.type]+=x.amount});
   categoryReport.innerHTML=`<div class="table-wrap"><table><thead><tr><th>Categoria</th><th>Receitas</th><th>Despesas</th><th>Resultado</th></tr></thead><tbody>${Object.entries(by).map(([k,v])=>`<tr><td>${esc(k)}</td><td>${BRL.format(v.receita)}</td><td>${BRL.format(v.despesa)}</td><td>${BRL.format(v.receita-v.despesa)}</td></tr>`).join('')||'<tr><td colspan="4" class="empty">Sem dados.</td></tr>'}</tbody></table></div>`;
   let acc=0;reportBody.innerHTML=data.map(x=>{acc+=x.type==='receita'?x.amount:-x.amount;return `<tr><td>${new Date(x.date+'T12:00').toLocaleDateString('pt-BR')}</td><td>${esc(x.description)}</td><td>${esc(x.category)}</td><td>${x.type==='receita'?BRL.format(x.amount):''}</td><td>${x.type==='despesa'?BRL.format(x.amount):''}</td><td>${BRL.format(acc)}</td></tr>`}).join('')||'<tr><td colspan="6" class="empty">Sem dados.</td></tr>';
-  const daily={};let balance=0;data.forEach(x=>{balance+=x.type==='receita'?x.amount:-x.amount;daily[x.date]=balance});
-  drawLineChart(dailyChart,Object.entries(daily).map(([d,value])=>({label:d.slice(8,10),value})));
+  const exp=Object.entries(by).filter(([k,v])=>v.despesa>0).sort((a,b)=>b[1].despesa-a[1].despesa);
+  reportPercent.innerHTML=exp.map(([k,v])=>`<p><strong>${esc(k)}</strong> — ${t.despesas?(v.despesa/t.despesas*100).toFixed(1):0}%</p>`).join('')||'<p>Sem despesas no período.</p>';
 }
 
-function refreshAll(){renderTransactions();renderDashboard();renderReport();renderCategorySettings()}
+function refreshAll(){renderTransactions();renderDashboard();renderReport();renderCategorySettings();updateBudgetLink();renderBudget();renderGlp()}
 document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));b.classList.add('active');document.getElementById(b.dataset.page).classList.add('active');refreshAll()});
-dashboardMonth.onchange=renderDashboard;reportMonth.onchange=renderReport;
+dashboardMonth.onchange=renderDashboard;dashboardMode.onchange=renderDashboard;dashboardYear.onchange=renderDashboard;reportMonth.onchange=renderReport;budgetMonth.onchange=renderBudget;glpMonth.onchange=renderGlp;
 
 addIncomeCategory.onclick=()=>addCategory('receita',newIncomeCategory);
 addExpenseCategory.onclick=()=>addCategory('despesa',newExpenseCategory);
@@ -350,10 +425,10 @@ exportCsv.onclick=()=>{
   const csv=['Data;Tipo;Categoria;Descrição;Forma de pagamento;Documento;Status;Valor',...rows.map(x=>[x.date,x.type,x.category,x.description,x.payment,x.document||'',x.status,x.amount.toFixed(2).replace('.',',')].map(v=>`"${String(v).replaceAll('"','""')}"`).join(';'))].join('\n');
   downloadBlob('\uFEFF'+csv,'lancamentos-llsilvax.csv','text/csv;charset=utf-8');
 }
-backupBtn.onclick=()=>downloadBlob(JSON.stringify({transactions:loadTransactions(),categories:loadCategories()},null,2),'backup-llsilvax.json','application/json');
+backupBtn.onclick=()=>downloadBlob(JSON.stringify({version:2,exportedAt:new Date().toISOString(),transactions:loadTransactions(),categories:loadCategories(),budget:loadBudget(),glp:loadGlp(),glpFactor:loadGlpFactor()},null,2),'backup-llsilvax-v2.json','application/json');
 function downloadBlob(content,name,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([content],{type}));a.download=name;a.click();URL.revokeObjectURL(a.href)}
-restoreInput.onchange=async e=>{try{const obj=JSON.parse(await e.target.files[0].text());saveTransactions(obj.transactions||[]);saveCategories(obj.categories||defaultCategories);refreshAll();alert('Backup importado.')}catch{alert('Arquivo inválido.')}};
-resetBtn.onclick=()=>{if(confirm('Apagar permanentemente todos os lançamentos?')){localStorage.removeItem(KEY);localStorage.removeItem(CATKEY);refreshAll()}};
+restoreInput.onchange=async e=>{try{if(!e.target.files?.[0])return;const obj=JSON.parse(await e.target.files[0].text());if(!Array.isArray(obj.transactions)||!obj.categories||!Array.isArray(obj.categories.receita)||!Array.isArray(obj.categories.despesa))throw Error('Formato incompatível');if(!confirm('Importar substitui os dados atuais. Você já salvou um backup atualizado?'))return;saveTransactions(obj.transactions);saveCategories(obj.categories);saveBudget(Array.isArray(obj.budget)?obj.budget:[]);saveGlp(Array.isArray(obj.glp)?obj.glp:[]);if(Object.prototype.hasOwnProperty.call(obj,'glpFactor'))saveGlpFactor(obj.glpFactor);else saveGlpFactor(null);refreshAll();alert('Backup importado com sucesso.')}catch(err){alert('Arquivo inválido: '+err.message)}finally{e.target.value=''}};
+resetBtn.onclick=()=>{if(confirm('ATENÇÃO: apagar permanentemente lançamentos, categorias, orçamento e leituras de GLP? Faça um backup antes.')){localStorage.removeItem(KEY);localStorage.removeItem(CATKEY);localStorage.removeItem(BUDGETKEY);localStorage.removeItem(GLPKEY);localStorage.removeItem(GLPFACTORKEY);refreshAll()}};
 sampleBtn.onclick=()=>{
   if(loadTransactions().length&&!confirm('Adicionar dados de exemplo aos dados atuais?'))return;
   const m=currentMonth(),y=m.slice(0,4),mo=m.slice(5),d=n=>`${y}-${mo}-${String(n).padStart(2,'0')}`;
@@ -368,6 +443,278 @@ sampleBtn.onclick=()=>{
   saveTransactions([...loadTransactions(),...sample]);refreshAll();
 };
 
+
+// Módulos 2.0: orçamento, GLP e relatórios para impressão/PDF
+function money(n){return BRL.format(n||0)}
+function pct(n,d){return d>0?(100*n/d).toFixed(1)+'%':'—'}
+function getPaidExpenses(period){return getFiltered(period,'despesa').filter(x=>x.status==='Pago/Recebido')}
+function updateBudgetLink(){
+ const active=type.value==='despesa';budgetLinkWrap.style.display=active?'block':'none';
+ const m=date.value.slice(0,7),items=loadBudget().filter(x=>x.month===m&&x.category===category.value);
+ const prior=transactionBudgetItem.value;
+ transactionBudgetItem.innerHTML='<option value="">Sem vínculo orçamentário</option>'+items.map(x=>`<option value="${esc(x.id)}">${esc(x.description)} — ${money(x.amount)}</option>`).join('');
+ if(items.some(x=>x.id===prior))transactionBudgetItem.value=prior;
+}
+function renderBudget(){
+  const m=budgetMonth.value;const items=loadBudget().filter(x=>x.month===m);const cats=loadCategories().despesa;
+  const prev=budgetCategory.value;budgetCategory.innerHTML=cats.map(c=>`<option>${esc(c)}</option>`).join('');if(cats.includes(prev))budgetCategory.value=prev;
+  const expenses=getPaidExpenses(m);const planned=items.reduce((a,x)=>a+x.amount,0),actual=expenses.reduce((a,x)=>a+x.amount,0);
+  budgetPlanned.textContent=money(planned);budgetActual.textContent=money(actual);budgetPct.textContent=pct(actual,planned);budgetDiff.textContent=money(planned-actual);
+  budgetBody.innerHTML=items.map(x=>{const r=expenses.filter(t=>t.budgetItemId===x.id).reduce((a,t)=>a+t.amount,0);return `<tr><td>${esc(x.category)}</td><td>${esc(x.description)}</td><td>${money(x.amount)}</td><td>${money(r)}</td><td>${pct(r,x.amount)}</td><td><button class="btn-secondary" data-budget-edit="${esc(x.id)}">Editar</button> <button class="btn-danger" data-budget-delete="${esc(x.id)}">Excluir</button></td></tr>`}).join('')||'<tr><td colspan="6">Sem itens previstos.</td></tr>';
+  const all=[...new Set([...items.map(x=>x.category),...expenses.map(x=>x.category)])];
+  budgetCompare.innerHTML=all.map(c=>{const p=items.filter(x=>x.category===c).reduce((a,x)=>a+x.amount,0),r=expenses.filter(x=>x.category===c).reduce((a,x)=>a+x.amount,0);return `<tr><td>${esc(c)}</td><td>${money(p)}</td><td>${money(r)}</td><td>${pct(r,p)}</td><td>${money(p-r)}</td></tr>`}).join('')||'<tr><td colspan="5">Sem dados no período.</td></tr>';
+}
+function resetBudgetEditor(){
+  editingBudgetId=null;
+  budgetForm.reset();
+  budgetSubmit.textContent='Adicionar ao orçamento';
+  budgetCancel.style.display='none';
+}
+budgetCancel.addEventListener('click',resetBudgetEditor);
+budgetMonth.addEventListener('change',resetBudgetEditor);
+budgetForm.addEventListener('submit',e=>{
+  e.preventDefault();
+  const amount=Number(budgetAmount.value),description=budgetDescription.value.trim();
+  if(!Number.isFinite(amount)||amount<0||!description)return alert('Confira o valor e a descrição.');
+  const budgets=loadBudget();
+  if(editingBudgetId){
+    const idx=budgets.findIndex(x=>x.id===editingBudgetId);
+    if(idx<0){resetBudgetEditor();return alert('Item não encontrado. Atualize a tela.');}
+    const old=budgets[idx];
+    const linked=loadTransactions().filter(x=>x.budgetItemId===old.id);
+    if(old.category!==budgetCategory.value&&linked.length){
+      if(!confirm('Este item possui '+linked.length+' lançamento(s) vinculado(s). Alterar a categoria também atualizará a categoria desses lançamentos. Deseja continuar?'))return;
+      saveTransactions(loadTransactions().map(x=>x.budgetItemId===old.id?{...x,category:budgetCategory.value}:x));
+    }
+    budgets[idx]={...old,category:budgetCategory.value,description,amount};
+  }else{
+    budgets.push({id:crypto.randomUUID(),month:budgetMonth.value,category:budgetCategory.value,description,amount});
+  }
+  saveBudget(budgets);resetBudgetEditor();refreshAll();
+  alert('Item orçamentário salvo com sucesso.');
+});
+budgetBody.addEventListener('click',e=>{
+  const edit=e.target.closest('[data-budget-edit]');
+  if(edit){
+    const item=loadBudget().find(x=>x.id===edit.dataset.budgetEdit);
+    if(!item)return alert('Item não encontrado.');
+    editingBudgetId=item.id;
+    budgetMonth.value=item.month;
+    renderBudget();
+    budgetCategory.value=item.category;
+    budgetDescription.value=item.description;
+    budgetAmount.value=item.amount;
+    budgetSubmit.textContent='Salvar alterações';
+    budgetCancel.style.display='inline-block';
+    budgetForm.scrollIntoView({behavior:'smooth',block:'center'});
+    budgetDescription.focus();
+    return;
+  }
+  const del=e.target.closest('[data-budget-delete]');
+  if(del){
+    const id=del.dataset.budgetDelete;
+    const linked=loadTransactions().filter(x=>x.budgetItemId===id);
+    if(linked.length)return alert('Este item possui lançamentos vinculados. Para preservar o histórico, desvincule-os antes de excluir o orçamento.');
+    if(confirm('Excluir item orçamentário?')){
+      saveBudget(loadBudget().filter(x=>x.id!==id));
+      if(editingBudgetId===id)resetBudgetEditor();
+      refreshAll();
+    }
+  }
+});
+function glpPrev(row,rows){return rows.filter(x=>x.apartment===row.apartment&&(x.date<row.date||(x.date===row.date&&x.id<row.id))).sort((a,b)=>b.date.localeCompare(a.date)||b.id.localeCompare(a.id))[0]}
+function loadGlpFactor(){const n=Number(localStorage.getItem(GLPFACTORKEY));return Number.isFinite(n)&&n>0?n:null}
+function saveGlpFactor(v){if(v===null||v===''||!Number.isFinite(Number(v))||Number(v)<=0)localStorage.removeItem(GLPFACTORKEY);else localStorage.setItem(GLPFACTORKEY,String(Number(v)))}
+let glpEditingId=null;
+function clearGlpEdit(){glpEditingId=null;glpForm.reset();glpDate.value=today();glpSaveBtn.textContent="Salvar leitura";glpCancelEdit.style.display="none";}
+glpCancelEdit.addEventListener("click",clearGlpEdit);
+function renderGlp(){const all=loadGlp(),factor=loadGlpFactor(),rows=all.filter(x=>x.date.startsWith(glpMonth.value)).sort((a,b)=>a.apartment.localeCompare(b.apartment,undefined,{numeric:true})||a.date.localeCompare(b.date));
+  glpBody.innerHTML=rows.map(x=>{const prev=glpPrev(x,all),diff=prev?x.reading-prev.reading:null;return `<tr><td>${esc(x.apartment)}</td><td>${esc(x.date)}</td><td>${prev?prev.reading.toFixed(3):'—'}</td><td>${x.reading.toFixed(3)}</td><td>${diff===null?'—':diff<0?'Revisar':diff.toFixed(3)}</td><td>${diff===null||diff<0||!factor?'—':(diff*factor).toFixed(3)}</td><td>${esc(x.note||'')}</td><td><button class="btn-secondary" data-glp-edit="${esc(x.id)}">Editar</button> <button class="btn-danger" data-glp-delete="${esc(x.id)}">Excluir</button></td></tr>`}).join('')||'<tr><td colspan="8">Nenhuma leitura neste mês.</td></tr>';
+  renderGlpChart(all);
+}
+function glpMonthlyReadingsPdf(){
+ const month=glpMonth.value;
+ const all=loadGlp();
+ const readings=all.filter(x=>x.date.startsWith(month)).sort((a,b)=>a.apartment.localeCompare(b.apartment,'pt-BR',{numeric:true})||a.date.localeCompare(b.date));
+ if(!readings.length){alert('Não há leituras cadastradas para o mês selecionado.');return;}
+ const factor=loadGlpFactor();
+ const fmt=n=>Number(n).toLocaleString('pt-BR',{minimumFractionDigits:3,maximumFractionDigits:3});
+ const dateBR=d=>{const [y,m,day]=d.split('-');return `${day}/${m}/${y}`;};
+ let totalM3=0,validCount=0,missingCount=0;
+ const rows=readings.map(x=>{
+   const previous=glpPrev(x,all);
+   const difference=previous?Number(x.reading)-Number(previous.reading):null;
+   const valid=difference!==null&&Number.isFinite(difference)&&difference>=0;
+   if(valid){totalM3+=difference;validCount++;}else missingCount++;
+   return `<tr><td>${esc(x.apartment)}</td><td>${dateBR(x.date)}</td><td class="num">${previous?fmt(previous.reading):'—'}</td><td class="num">${fmt(x.reading)}</td><td class="num">${valid?fmt(difference):difference===null?'—':'Revisar'}</td><td class="num">${valid&&factor?fmt(difference*factor):'—'}</td><td>${esc(x.note||'—')}</td></tr>`;
+ }).join('');
+ const title='Leituras mensais de GLP — Gestão à Vista';
+ const html=`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title} — ${esc(month)}</title><style>
+ @page{size:A4 landscape;margin:14mm}*{box-sizing:border-box}body{font:12px Arial,Helvetica,sans-serif;color:#253142;margin:0}h1{font-size:23px;color:#1f4e78;margin:0 0 5px}h2{font-size:17px;margin:0 0 12px}.meta{color:#526176;font-size:11px;margin:0 0 15px}.actions{margin:0 0 15px}button{padding:10px 14px;border:0;background:#1f4e78;color:white;border-radius:6px;font-weight:bold}table{width:100%;border-collapse:collapse;table-layout:fixed}thead{display:table-header-group}th{background:#e8eef5;color:#1f3550;text-align:left}th,td{padding:9px 7px;border-bottom:1px solid #dbe2ea;overflow-wrap:anywhere;vertical-align:top}th:nth-child(1){width:9%}th:nth-child(2){width:13%}th:nth-child(3),th:nth-child(4),th:nth-child(5),th:nth-child(6){width:13%}th:nth-child(7){width:26%}.num{text-align:right;white-space:nowrap}tr{break-inside:avoid}.summary{margin:15px 0 8px;border-top:2px solid #1f4e78;padding-top:10px;display:flex;gap:25px;flex-wrap:wrap}.summary b{color:#1f4e78}.note{font-size:10px;color:#5b6677;line-height:1.5}@media print{.actions{display:none!important}body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+ </style></head><body><div class="actions"><button onclick="window.print()">Imprimir / Salvar como PDF</button></div><h1>Condomínio LLSILVA X</h1><h2>${title}</h2><p class="meta">Referência: ${esc(monthName(month))} · Emitido em ${new Date().toLocaleDateString('pt-BR')}</p><table><thead><tr><th>Apto</th><th>Data</th><th>Anterior (m³)</th><th>Atual (m³)</th><th>Consumo (m³)</th><th>Consumo (kg)</th><th>Observação</th></tr></thead><tbody>${rows}</tbody></table><div class="summary"><span>Consumo total apurado: <b>${fmt(totalM3)} m³</b></span><span>Consumo equivalente: <b>${factor?fmt(totalM3*factor)+' kg':'—'}</b></span><span>Leituras com consumo válido: <b>${validCount}</b></span></div><p class="note">Os totais consideram somente diferenças válidas entre leituras consecutivas de cada apartamento. ${missingCount?'Há '+missingCount+' leitura(s) sem base anterior ou com diferença negativa, excluída(s) dos totais. ':''} ${factor?'Conversão aplicada: '+fmt(factor)+' kg/m³.':'Fator de conversão não configurado; valores em kg indisponíveis.'} Este relatório não apresenta valores financeiros.</p></body></html>`;
+ const w=window.open('','_blank');if(!w){alert('Permita pop-ups para gerar o PDF.');return;}
+ w.document.open();w.document.write(html);w.document.close();
+}
+document.getElementById('glpReadingsPdfBtn').addEventListener('click',glpMonthlyReadingsPdf);
+function renderGlpChart(all){
+ const apartments=[...new Set(all.map(x=>x.apartment))].sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}));
+ const chosen=glpChartApartment.value;
+ glpChartApartment.innerHTML=apartments.map(a=>`<option value="${esc(a)}">Apartamento ${esc(a)}</option>`).join('');
+ if(apartments.includes(chosen))glpChartApartment.value=chosen;
+ glpChartApartment.style.display=glpChartMode.value==='apartment'?'block':'none';
+ const factor=loadGlpFactor(),unit=glpChartUnit.value;
+ const note=document.getElementById('glpChartNote');
+ if(unit==='kg'&&!factor){note.textContent='Informe o fator de conversão para visualizar o gráfico em kg.';drawBarChart(glpChart,[],[{name:'Consumo (kg)',color:'#2f75b5',values:[]}]);return;}
+ const [year,month]=glpMonth.value.split('-').map(Number);
+ const months=Array.from({length:12},(_,i)=>{const d=new Date(year,month-12+i,1);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`});
+ const sums=Object.fromEntries(months.map(m=>[m,0]));
+ for(const x of all){if(glpChartMode.value==='apartment'&&x.apartment!==glpChartApartment.value)continue;const prev=glpPrev(x,all);if(!prev)continue;const diff=x.reading-prev.reading;if(diff<0||!Number.isFinite(diff))continue;const m=x.date.slice(0,7);if(m in sums)sums[m]+=diff;}
+ const vals=months.map(m=>sums[m]*(unit==='kg'?factor:1));
+ note.textContent='Consumo calculado pela diferença entre leituras consecutivas, atribuído ao mês da leitura atual. Meses sem leitura válida aparecem como zero (não necessariamente consumo zero).';
+ drawGlpBarChart(glpChart,months,vals,unit==='kg'?'kg':'m³');
+}
+function glpPdfReport(){
+ const all=loadGlp(),unit=glpChartUnit.value,factor=loadGlpFactor();
+ if(unit==='kg'&&!factor){alert('Configure o fator de conversão para gerar o relatório em kg.');return;}
+ const [year,month]=glpMonth.value.split('-').map(Number);
+ const months=Array.from({length:12},(_,i)=>{const d=new Date(year,month-12+i,1);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`});
+ const mode=glpChartMode.value,apt=glpChartApartment.value;
+ if(mode==='apartment'&&!apt){alert('Selecione um apartamento.');return;}
+ const sums=Object.fromEntries(months.map(m=>[m,0]));
+ const counts=Object.fromEntries(months.map(m=>[m,0]));
+ for(const x of all){
+   if(mode==='apartment'&&x.apartment!==apt)continue;
+   const prev=glpPrev(x,all);if(!prev)continue;
+   const diff=x.reading-prev.reading;if(!Number.isFinite(diff)||diff<0)continue;
+   const m=x.date.slice(0,7);if(Object.hasOwn(sums,m)){sums[m]+=diff;counts[m]++;}
+ }
+ const multiplier=unit==='kg'?factor:1;
+ const values=months.map(m=>sums[m]*multiplier);
+ const valid=months.filter(m=>counts[m]>0);
+ const total=values.reduce((a,b)=>a+b,0);
+ const average=valid.length?total/valid.length:null;
+ const unitLabel=unit==='kg'?'kg':'m³';
+ const number=n=>n.toLocaleString('pt-BR',{minimumFractionDigits:3,maximumFractionDigits:3});
+ const title=mode==='apartment'?`Consumo de GLP — Apartamento ${apt}`:'Consumo de GLP — Geral do condomínio';
+ const chartData=glpChart.toDataURL('image/png');
+ const rows=months.map((m,i)=>`<tr><td>${esc(monthName(m))}</td><td style="text-align:right">${counts[m]?number(values[i])+' '+unitLabel:'Sem leitura válida'}</td></tr>`).join('');
+ const html=`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>${esc(title)}</title><style>
+ @page{size:A4;margin:14mm}*{box-sizing:border-box}body{font:12px Arial,sans-serif;color:#263342;margin:0}h1{color:#1f4e78;font-size:21px;margin:0 0 8px}h2{font-size:17px;margin:0 0 8px}.note{color:#64748b;font-size:10px}.metrics{display:flex;gap:12px;margin:14px 0}.metric{border:1px solid #dbe2ea;border-radius:8px;padding:10px 14px;flex:1}.metric b{display:block;font-size:16px;margin-top:6px}.chart{display:block;width:100%;height:auto;max-height:250px;object-fit:contain;margin:12px 0}table{width:100%;border-collapse:collapse;table-layout:fixed}th,td{padding:5px 9px;border-bottom:1px solid #e2e8f0;text-align:left}th{background:#edf2f7}tr{break-inside:avoid}.no-print{margin-bottom:16px;padding:10px;background:#1f4e78;color:#fff;border:0;border-radius:6px}@media print{.no-print{display:none}}
+ </style></head><body><button class="no-print" onclick="window.print()">Imprimir / Salvar como PDF</button><h1>Condomínio LLSILVA X</h1><h2>${esc(title)}</h2><p class="note">Últimos 12 meses até ${esc(monthName(glpMonth.value))} · Emissão: ${new Date().toLocaleDateString('pt-BR')}</p><div class="metrics"><div class="metric">Consumo no período<b>${number(total)} ${unitLabel}</b></div><div class="metric">Consumo médio mensal*<b>${average===null?'—':number(average)+' '+unitLabel}</b></div></div><img class="chart" src="${chartData}" alt="Gráfico de barras de consumo GLP"><table><thead><tr><th>Mês</th><th style="text-align:right">Consumo (${unitLabel})</th></tr></thead><tbody>${rows}</tbody></table><p class="note">* Média calculada somente entre os meses com pelo menos uma leitura válida. No relatório geral, meses com leituras incompletas podem subestimar o consumo do condomínio. Meses sem leitura válida não são considerados consumo zero. O consumo é atribuído ao mês da leitura atual.</p>${unit==='kg'?`<p class="note">Fator configurado: ${number(factor)} kg/m³.</p>`:''}</body></html>`;
+ const w=window.open('','_blank');if(!w){alert('Permita pop-ups para gerar o PDF.');return;}w.document.open();w.document.write(html);w.document.close();
+}
+document.getElementById('glpPdfBtn').addEventListener('click',glpPdfReport);
+glpFactor.value=loadGlpFactor()??'';
+glpFactor.addEventListener('change',()=>{const v=glpFactor.value;if(v&&(!Number.isFinite(Number(v))||Number(v)<=0)){alert('Informe um fator positivo.');function glpPdfReport(){
+ const all=loadGlp(),unit=glpChartUnit.value,factor=loadGlpFactor();
+ if(unit==='kg'&&!factor){alert('Configure o fator de conversão para gerar o relatório em kg.');return;}
+ const [year,month]=glpMonth.value.split('-').map(Number);
+ const months=Array.from({length:12},(_,i)=>{const d=new Date(year,month-12+i,1);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`});
+ const mode=glpChartMode.value,apt=glpChartApartment.value;
+ if(mode==='apartment'&&!apt){alert('Selecione um apartamento.');return;}
+ const sums=Object.fromEntries(months.map(m=>[m,0]));
+ const counts=Object.fromEntries(months.map(m=>[m,0]));
+ for(const x of all){
+   if(mode==='apartment'&&x.apartment!==apt)continue;
+   const prev=glpPrev(x,all);if(!prev)continue;
+   const diff=x.reading-prev.reading;if(!Number.isFinite(diff)||diff<0)continue;
+   const m=x.date.slice(0,7);if(Object.hasOwn(sums,m)){sums[m]+=diff;counts[m]++;}
+ }
+ const multiplier=unit==='kg'?factor:1;
+ const values=months.map(m=>sums[m]*multiplier);
+ const valid=months.filter(m=>counts[m]>0);
+ const total=values.reduce((a,b)=>a+b,0);
+ const average=valid.length?total/valid.length:null;
+ const unitLabel=unit==='kg'?'kg':'m³';
+ const number=n=>n.toLocaleString('pt-BR',{minimumFractionDigits:3,maximumFractionDigits:3});
+ const title=mode==='apartment'?`Consumo de GLP — Apartamento ${apt}`:'Consumo de GLP — Geral do condomínio';
+ const chartData=glpChart.toDataURL('image/png');
+ const rows=months.map((m,i)=>`<tr><td>${esc(monthName(m))}</td><td style="text-align:right">${counts[m]?number(values[i])+' '+unitLabel:'Sem leitura válida'}</td></tr>`).join('');
+ const html=`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>${esc(title)}</title><style>
+ @page{size:A4;margin:14mm}*{box-sizing:border-box}body{font:12px Arial,sans-serif;color:#263342;margin:0}h1{color:#1f4e78;font-size:21px;margin:0 0 8px}h2{font-size:17px;margin:0 0 8px}.note{color:#64748b;font-size:10px}.metrics{display:flex;gap:12px;margin:14px 0}.metric{border:1px solid #dbe2ea;border-radius:8px;padding:10px 14px;flex:1}.metric b{display:block;font-size:16px;margin-top:6px}.chart{display:block;width:100%;height:auto;max-height:250px;object-fit:contain;margin:12px 0}table{width:100%;border-collapse:collapse;table-layout:fixed}th,td{padding:5px 9px;border-bottom:1px solid #e2e8f0;text-align:left}th{background:#edf2f7}tr{break-inside:avoid}.no-print{margin-bottom:16px;padding:10px;background:#1f4e78;color:#fff;border:0;border-radius:6px}@media print{.no-print{display:none}}
+ </style></head><body><button class="no-print" onclick="window.print()">Imprimir / Salvar como PDF</button><h1>Condomínio LLSILVA X</h1><h2>${esc(title)}</h2><p class="note">Últimos 12 meses até ${esc(monthName(glpMonth.value))} · Emissão: ${new Date().toLocaleDateString('pt-BR')}</p><div class="metrics"><div class="metric">Consumo no período<b>${number(total)} ${unitLabel}</b></div><div class="metric">Consumo médio mensal*<b>${average===null?'—':number(average)+' '+unitLabel}</b></div></div><img class="chart" src="${chartData}" alt="Gráfico de barras de consumo GLP"><table><thead><tr><th>Mês</th><th style="text-align:right">Consumo (${unitLabel})</th></tr></thead><tbody>${rows}</tbody></table><p class="note">* Média calculada somente entre os meses com pelo menos uma leitura válida. No relatório geral, meses com leituras incompletas podem subestimar o consumo do condomínio. Meses sem leitura válida não são considerados consumo zero. O consumo é atribuído ao mês da leitura atual.</p>${unit==='kg'?`<p class="note">Fator configurado: ${number(factor)} kg/m³.</p>`:''}</body></html>`;
+ const w=window.open('','_blank');if(!w){alert('Permita pop-ups para gerar o PDF.');return;}w.document.open();w.document.write(html);w.document.close();
+}
+document.getElementById('glpPdfBtn').addEventListener('click',glpPdfReport);
+glpFactor.value=loadGlpFactor()??'';return;}saveGlpFactor(v);renderGlp();});
+[glpChartMode,glpChartApartment,glpChartUnit].forEach(el=>el.addEventListener('change',renderGlp));
+glpForm.addEventListener('submit',e=>{
+ e.preventDefault();
+ const apartment=glpApartment.value.trim().toUpperCase(),reading=Number(glpReading.value),date=glpDate.value;
+ if(!apartment||!date||!Number.isFinite(reading)||reading<0)return alert('Confira os campos.');
+ const rows=loadGlp();
+ if(rows.some(x=>x.apartment===apartment&&x.date===date&&x.id!==glpEditingId))return alert('Já existe leitura desse apartamento nessa data.');
+ const prior=rows.filter(x=>x.id!==glpEditingId&&x.apartment===apartment&&x.date<date).sort((a,b)=>b.date.localeCompare(a.date))[0];
+ if(prior&&reading<prior.reading&&!confirm('Leitura inferior à anterior. Pode indicar troca/virada do medidor. Salvar mesmo assim?'))return;
+ const item={id:glpEditingId||crypto.randomUUID(),apartment,date,reading,note:glpNote.value.trim()};
+ if(glpEditingId){const i=rows.findIndex(x=>x.id===glpEditingId);if(i<0)return alert('Leitura não encontrada.');rows[i]=item;}
+ else rows.push(item);
+ const wasEditing=Boolean(glpEditingId);saveGlp(rows);glpMonth.value=date.slice(0,7);clearGlpEdit();refreshAll();
+ alert(wasEditing?'Leitura atualizada.':'Leitura salva.');
+});
+glpBody.addEventListener('click',e=>{
+ const edit=e.target.closest('[data-glp-edit]');
+ if(edit){const row=loadGlp().find(x=>x.id===edit.dataset.glpEdit);if(!row)return;
+ glpEditingId=row.id;glpApartment.value=row.apartment;glpDate.value=row.date;glpReading.value=row.reading;glpNote.value=row.note||'';
+ glpSaveBtn.textContent='Salvar alterações';glpCancelEdit.style.display='inline-block';glpForm.scrollIntoView({behavior:'smooth',block:'center'});return;}
+ const del=e.target.closest('[data-glp-delete]');if(del&&confirm('Excluir esta leitura?')){
+ saveGlp(loadGlp().filter(x=>x.id!==del.dataset.glpDelete));if(glpEditingId===del.dataset.glpDelete)clearGlpEdit();refreshAll();}
+});
+function printable(title,body){
+ const html=`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>${esc(title)}</title><style>body{font:11px Arial,sans-serif;color:#1f2937;margin:0}*{box-sizing:border-box}h1{color:#1f4e78;font-size:23px}h2{font-size:17px;margin-top:22px}table{width:100%;table-layout:fixed;border-collapse:collapse;margin:12px 0}th,td{padding:7px 5px;text-align:left;border-bottom:1px solid #ddd;overflow-wrap:anywhere;vertical-align:top}th:first-child,td:first-child{width:13%}th:last-child,td:last-child{text-align:right;width:16%}thead{display:table-header-group}tr{break-inside:avoid}th{background:#edf2f7}.note{font-size:12px;color:#667085}.pill{display:inline-block;border:1px solid #ccd5df;padding:10px;margin:5px;border-radius:6px}.bar{height:12px;background:#e5eaf0;border-radius:5px;overflow:hidden}.fill{height:100%;background:#2f75b5}@page{size:A4;margin:12mm}@media print{.no-print{display:none}}</style></head><body><button class="no-print" onclick="window.print()">Imprimir / Salvar como PDF</button><h1>Condomínio LLSILVA X</h1><h2>${esc(title)}</h2><p class="note">Emissão: ${new Date().toLocaleDateString('pt-BR')}</p>${body}<p class="note">Documento gerado a partir dos lançamentos cadastrados no aplicativo. Conferir antes de divulgar.</p></body></html>`;
+ const w=window.open('','_blank');if(!w){alert('Permita pop-ups para gerar o relatório em PDF.');return}w.document.open();w.document.write(html);w.document.close();
+}
+function formatDateBR(iso){if(!/^\d{4}-\d{2}-\d{2}$/.test(String(iso)))return iso||'';const [y,m,d]=iso.split('-');return `${d}/${m}/${y}`}
+function table(headers,rows){return `<table><thead><tr>${headers.map(h=>`<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>${rows.map(row=>`<tr>${row.map(cell=>`<td>${esc(String(cell))}</td>`).join('')}</tr>`).join('')}</tbody></table>`}
+function categoryStats(month){const items=getPaidExpenses(month),total=items.reduce((a,x)=>a+x.amount,0),cats={};items.forEach(x=>cats[x.category]=(cats[x.category]||0)+x.amount);return {total,cats,items}}
+// Distribui decimos percentuais pelo metodo dos maiores restos.
+// A soma dos percentuais exibidos sera exatamente 100,0% quando houver despesas.
+function adjustedCategoryPercentages(cats,total){
+ const entries=Object.entries(cats).filter(([,v])=>Number(v)>0).sort((a,b)=>b[1]-a[1]);
+ if(!(total>0)||!entries.length)return [];
+ const rows=entries.map(([name,value],index)=>{
+  const exact=value/total*1000,base=Math.floor(exact+1e-9);
+  return {name,value,index,units:base,remainder:exact-base};
+ });
+ let remaining=1000-rows.reduce((sum,row)=>sum+row.units,0);
+ const priority=[...rows].sort((a,b)=>b.remainder-a.remainder||a.index-b.index);
+ for(let i=0;i<remaining;i++)priority[i%priority.length].units++;
+ return rows.map(row=>({...row,label:(row.units/10).toFixed(1)+'%'}));
+}
+function publicBody(month){const {total,cats}=categoryStats(month),prior=new Date(month+'-01T12:00');prior.setMonth(prior.getMonth()-1);const prevMonth=`${prior.getFullYear()}-${String(prior.getMonth()+1).padStart(2,'0')}`,previous=categoryStats(prevMonth).total;const variation=previous?((total-previous)/previous*100).toFixed(1)+'%':'Sem base de comparação';const budget=loadBudget().filter(x=>x.month===month),planned=budget.reduce((a,x)=>a+x.amount,0);const within=budget.length?[...new Set(budget.map(x=>x.category))].filter(c=>{const p=budget.filter(x=>x.category===c).reduce((a,x)=>a+x.amount,0);return (cats[c]||0)<=p}).length:null;const distinct=[...new Set(budget.map(x=>x.category))];const distributed=adjustedCategoryPercentages(cats,total);
+ return `<p><strong>Referência:</strong> ${esc(monthName(month))}</p><div class="pill">Variação mensal das despesas: <b>${variation}</b></div><div class="pill">Execução do orçamento: <b>${pct(total,planned)}</b></div><div class="pill">Categorias dentro do orçamento: <b>${distinct.length?pct(within,distinct.length):'—'}</b></div><h2>Distribuição percentual das despesas pagas</h2>${distributed.map(({name:c,value:v,label})=>`<div style="margin:12px 0;break-inside:avoid"><p style="margin:0 0 5px">${esc(c)} — <b>${label}</b></p><img alt="Barra percentual de ${esc(c)}" style="display:block;width:100%;height:14px" src="data:image/svg+xml;charset=utf-8,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="700" height="14" viewBox="0 0 700 14"><rect width="700" height="14" rx="4" fill="#e5eaf0"/><rect width="${Math.max(0,Math.min(700,700*v/total))}" height="14" rx="4" fill="#2f75b5"/></svg>`)}"></div>`).join('')||'<p>Sem despesas pagas registradas.</p>'}${distributed.length?'<p style="margin-top:16px;padding-top:9px;border-top:1px solid #dbe2ea"><strong>Total: 100,0%</strong></p>':''}<p class="note">Indicadores percentuais calculados sobre despesas pagas/recebidas. Sem divulgação de valores monetários.</p>`}
+reportPublicPdf.onclick=()=>printable('Gestão à vista — indicadores percentuais',publicBody(reportMonth.value));
+reportExpensesPdf.onclick=()=>{const m=reportMonth.value,rows=getFiltered(m,'despesa').sort((a,b)=>a.date.localeCompare(b.date));printable('Demonstrativo mensal de despesas — '+monthName(m),table(['Data','Descrição','Categoria','Status','Valor'],rows.map(x=>[formatDateBR(x.date),x.description,x.category,(x.status||'Não informado'),money(x.amount)]))+`<h2>Total de despesas lançadas: ${money(rows.reduce((a,x)=>a+x.amount,0))}</h2>`)};
+reportDetailedPdf.onclick=()=>{const m=reportMonth.value,rows=getFiltered(m).sort((a,b)=>a.date.localeCompare(b.date)),t=totals(rows);printable('Prestação de contas mensal — '+monthName(m),`<p class="pill">Receitas: ${money(t.receitas)}</p><p class="pill">Despesas: ${money(t.despesas)}</p><p class="pill">Resultado: ${money(t.saldo)}</p>`+table(['Data','Descrição','Categoria','Tipo','Status','Valor'],rows.map(x=>[formatDateBR(x.date),x.description,x.category,x.type,(x.status||'Não informado'),money(x.amount)])))};
+reportAnnualPdf.onclick=()=>{
+ const year=reportMonth.value.slice(0,4);
+ const months=Array.from({length:12},(_,i)=>`${year}-${String(i+1).padStart(2,'0')}`);
+ const rows=months.map(m=>{const t=totals(getFiltered(m));return [monthName(m).split(' de ')[0],money(t.receitas),money(t.despesas),money(t.saldo)]});
+ const t=totals(getFiltered(year));
+ const annualStyle=`<style>
+ .annual-table{table-layout:fixed;width:100%;font-size:12px}
+ .annual-table col:nth-child(1){width:19%}
+ .annual-table col:nth-child(2){width:27%}
+ .annual-table col:nth-child(3){width:27%}
+ .annual-table col:nth-child(4){width:27%}
+ .annual-table th,.annual-table td{white-space:nowrap;overflow-wrap:normal;padding:8px 5px}
+ .annual-table th:first-child,.annual-table td:first-child{width:auto;text-align:left}
+ .annual-table th:not(:first-child),.annual-table td:not(:first-child){width:auto;text-align:right;font-variant-numeric:tabular-nums}
+ .annual-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:18px}
+ .annual-summary div{border:1px solid #dbe2ea;border-radius:6px;padding:10px 7px;min-width:0}
+ .annual-summary span{display:block;font-size:11px;color:#667085;margin-bottom:6px}
+ .annual-summary strong{display:block;font-size:13px;white-space:nowrap}
+ @media(max-width:420px){.annual-table{font-size:10px}.annual-table th,.annual-table td{padding:7px 3px}.annual-summary strong{font-size:11px}}
+ </style>`;
+ const cells=rows.map(row=>`<tr>${row.map(v=>`<td>${esc(String(v))}</td>`).join('')}</tr>`).join('');
+ const tableAnnual=`<table class="annual-table"><colgroup><col><col><col><col></colgroup><thead><tr><th>Mês</th><th>Receitas</th><th>Despesas</th><th>Resultado</th></tr></thead><tbody>${cells}</tbody></table>`;
+ const summary=`<h2>Resumo anual</h2><div class="annual-summary"><div><span>Receitas</span><strong>${money(t.receitas)}</strong></div><div><span>Despesas</span><strong>${money(t.despesas)}</strong></div><div><span>Resultado</span><strong>${money(t.saldo)}</strong></div></div>`;
+ printable('Relatório anual — '+year,annualStyle+tableAnnual+summary);
+};
+
+updateBudgetLink();
+const years=Array.from({length:12},(_,i)=>new Date().getFullYear()+2-i);dashboardYear.innerHTML=years.map(y=>`<option value="${y}">${y}</option>`).join('');dashboardYear.value=String(new Date().getFullYear());
+budgetMonth.value=currentMonth();glpMonth.value=currentMonth();glpDate.value=today();
 date.value=today();dashboardMonth.value=currentMonth();filterMonth.value=currentMonth();reportMonth.value=currentMonth();
 populateCategories();refreshAll();
 </script>
